@@ -5,6 +5,9 @@ from typing import List
 
 from core.database import get_db
 
+from users.models import UserModel
+from auth.jwt_auth import get_authenticated_user
+
 from .schemas import *
 from .models import *
 
@@ -16,9 +19,11 @@ async def retrieve_task_list(
         completed: bool = Query(None, description="filter tasks based on being completed or not"),
         limit: int = Query(10, gt=0, le=50, description="limiting the number of items to retrieve"),
         offset: int = Query(0, ge=0, description="used for paginating based on passed items"),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        user: UserModel = Depends(get_authenticated_user),
 ):
-    query = db.query(TaskModel)
+
+    query = db.query(TaskModel).filter_by(user_id=user.id)
     if completed is not None:
         query = query.filter_by(is_completed=completed)
 
@@ -26,11 +31,17 @@ async def retrieve_task_list(
 
 
 @router.post("/tasks/", response_model=TaskResponseSchema)
-async def create_task(request: TaskCreateSchema, db: Session = Depends(get_db)):
+async def create_task(
+        request: TaskCreateSchema,
+        db: Session = Depends(get_db),
+        user: UserModel = Depends(get_authenticated_user),
+):
+
     task = TaskModel(
         title=request.title,
         description=request.description,
         is_completed=request.is_completed,
+        user_id=user.id,
     )
 
     db.add(task)
@@ -40,8 +51,13 @@ async def create_task(request: TaskCreateSchema, db: Session = Depends(get_db)):
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponseSchema)
-async def retrieve_task_detail(task_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    task = db.query(TaskModel).filter_by(id=task_id).one_or_none()
+async def retrieve_task_detail(
+        task_id: int = Path(..., gt=0),
+        db: Session = Depends(get_db),
+        user: UserModel = Depends(get_authenticated_user),
+):
+
+    task = db.query(TaskModel).filter_by(id=task_id, user_id=user.id).one_or_none()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
 
@@ -49,8 +65,13 @@ async def retrieve_task_detail(task_id: int = Path(..., gt=0), db: Session = Dep
 
 
 @router.put("/tasks/{task_id}", response_model=TaskResponseSchema)
-async def update_task(request: TaskUpdateSchema, task_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    task = db.query(TaskModel).filter_by(id=task_id).one_or_none()
+async def update_task(
+        request: TaskUpdateSchema, task_id: int = Path(..., gt=0),
+        db: Session = Depends(get_db),
+        user: UserModel = Depends(get_authenticated_user),
+):
+
+    task = db.query(TaskModel).filter_by(id=task_id, user_id=user.id).one_or_none()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
 
@@ -64,8 +85,13 @@ async def update_task(request: TaskUpdateSchema, task_id: int = Path(..., gt=0),
 
 
 @router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(task_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    task = db.query(TaskModel).filter_by(id=task_id).one_or_none()
+async def delete_task(
+        task_id: int = Path(..., gt=0),
+        db: Session = Depends(get_db),
+        user: UserModel = Depends(get_authenticated_user),
+):
+
+    task = db.query(TaskModel).filter_by(id=task_id, user_id=user.id).one_or_none()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
 
