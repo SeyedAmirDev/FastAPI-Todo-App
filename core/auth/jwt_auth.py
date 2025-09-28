@@ -1,13 +1,18 @@
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from core.database import get_db
 from sqlalchemy.orm import Session
 
 from datetime import datetime
 import jwt
-from jwt.exceptions import DecodeError, InvalidSignatureError, ExpiredSignatureError, InvalidAlgorithmError
+from jwt.exceptions import (
+    DecodeError,
+    InvalidSignatureError,
+    ExpiredSignatureError,
+    InvalidAlgorithmError,
+)
 from users.models import UserModel
 from core.config import settings
+from core.database import get_db
 
 
 ACCESS_TOKEN_TYPE = "access"
@@ -26,8 +31,7 @@ def unauthorized_exception(message: str) -> HTTPException:
     :return: HTTPException
     """
     return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=message
+        status_code=status.HTTP_401_UNAUTHORIZED, detail=message
     )
 
 
@@ -36,7 +40,7 @@ def jwt_token_has_expired(jwt_payload: dict) -> bool:
     Check whether a token has expired.
     Returns True if expired, False otherwise.
     """
-    exp = jwt_payload.get('exp')
+    exp = jwt_payload.get("exp")
     if not exp:
         return False
 
@@ -77,9 +81,7 @@ def get_authenticated_user(
     user = db.query(UserModel).filter_by(id=user_id).one_or_none()
 
     if not user:
-        raise unauthorized_exception(
-            message='user not found.'
-        )
+        raise unauthorized_exception(message="user not found.")
     return user
 
 
@@ -124,8 +126,9 @@ def generate_access_token(user_id: int, expired_at: int | None = None) -> str:
         "type": ACCESS_TOKEN_TYPE,
     }
 
-    return jwt.encode(payload, key=settings.JWT_SECRET_KEY,
-                      algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, key=settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def generate_refresh_token(user_id: int, expired_at: int | None = None) -> str:
@@ -147,8 +150,9 @@ def generate_refresh_token(user_id: int, expired_at: int | None = None) -> str:
         "type": REFRESH_TOKEN_TYPE,
     }
 
-    return jwt.encode(payload, key=settings.JWT_SECRET_KEY,
-                      algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, key=settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def generate_access_token_from_refresh(refresh: str):

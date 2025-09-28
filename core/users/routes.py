@@ -1,26 +1,22 @@
-from fastapi import APIRouter, Path, Depends, HTTPException, status, Query
+import secrets
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import exists
+from datetime import timedelta, datetime
 
 from core.database import get_db
-from datetime import datetime, timedelta
-
-from .schemas import *
-from .models import *
+from users.schemas import UserLoginSchema, RefreshTokenSchema, UserRegisterSchema
+from users.models import UserModel, TokenModel
 from auth.jwt_auth import (
     generate_access_token,
     generate_access_token_from_refresh,
-    generate_refresh_token
+    generate_refresh_token,
 )
 
-import secrets
 
-
-router = APIRouter(
-    prefix="/users",
-    tags=["Users"]
-)
+router = APIRouter(prefix="/users", tags=["Users"])
 
 TOKEN_EXPIRATION_DAYS = 1
 
@@ -34,8 +30,7 @@ def generate_token(length: int = 32) -> str:
     return secrets.token_hex(length)
 
 
-def create_access_token(for_user: UserModel,
-                        db: Session) -> TokenModel:
+def create_access_token(for_user: UserModel, db: Session) -> TokenModel:
     """
     This function utility create a random generated token
     for each user and persist that in database.
@@ -50,7 +45,9 @@ def create_access_token(for_user: UserModel,
     # evaluate expire time for token
     expiration = get_expiration_access_token()
     # create token object and then persist that in database
-    token = TokenModel(user_id=user.id, token=new_token, expiration_date=expiration)
+    token = TokenModel(
+        user_id=user.id, token=new_token, expiration_date=expiration
+    )
     db.add(token)
     db.commit()
 
@@ -116,7 +113,9 @@ def get_user_by_username(username: str, db: Session) -> UserModel:
     return user
 
 
-def authenticate_user(username: str, password: str, db: Session) -> UserModel | None:
+def authenticate_user(
+    username: str, password: str, db: Session
+) -> UserModel | None:
     """
     authenticate user by username and password
     :param username: str
@@ -135,55 +134,70 @@ def authenticate_user(username: str, password: str, db: Session) -> UserModel | 
 async def user_login(request: UserLoginSchema, db: Session = Depends(get_db)):
     user = authenticate_user(request.username, request.password, db)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Incorrect user or password.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect user or password.",
+        )
 
     token = get_or_create_access_token(for_user=user, db=db)
 
-    return JSONResponse(content={
-        'detail': 'Successfully logged in.',
-        'token': token.token
-    })
+    return JSONResponse(
+        content={"detail": "Successfully logged in.", "token": token.token}
+    )
 
 
-@router.post('/jwt/login/')
-async def user_login_jwt(request: UserLoginSchema, db: Session = Depends(get_db)):
+@router.post("/jwt/login/")
+async def user_login_jwt(
+    request: UserLoginSchema, db: Session = Depends(get_db)
+):
     user = authenticate_user(request.username, request.password, db)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Incorrect user or password.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect user or password.",
+        )
 
     access_token = generate_access_token(user.id)
     refresh_token = generate_refresh_token(user.id)
 
-    return JSONResponse(content={
-        'detail': 'Successfully logged in.',
-        'token': {
-            'access_token': access_token,
-            'refresh_token': refresh_token
+    return JSONResponse(
+        content={
+            "detail": "Successfully logged in.",
+            "token": {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+            },
         }
-    })
+    )
 
 
-@router.post('/jwt/refresh/')
+@router.post("/jwt/refresh/")
 async def refresh_access_token(request: RefreshTokenSchema):
-    new_access_token = generate_access_token_from_refresh(request.refresh_token)
+    new_access_token = generate_access_token_from_refresh(
+        request.refresh_token
+    )
 
-    return JSONResponse(content={
-        'detail': 'Successfully refreshed access token.',
-        'token': new_access_token
-    })
+    return JSONResponse(
+        content={
+            "detail": "Successfully refreshed access token.",
+            "token": new_access_token,
+        }
+    )
 
 
 @router.post("/register")
-async def user_register(request: UserRegisterSchema, db: Session = Depends(get_db)):
+async def user_register(
+    request: UserRegisterSchema, db: Session = Depends(get_db)
+):
     user_exists = db.query(
         exists().where(UserModel.username == request.username)
     ).scalar()
 
     if user_exists:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                             detail="User already registered.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already registered.",
+        )
     user = UserModel(username=request.username)
     user.set_password(request.password)
     db.add(user)
@@ -191,5 +205,5 @@ async def user_register(request: UserRegisterSchema, db: Session = Depends(get_d
 
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content={'detail': 'user registered successfully.'},
+        content={"detail": "user registered successfully."},
     )
