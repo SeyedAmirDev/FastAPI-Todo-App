@@ -1,8 +1,15 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    func,
+    ForeignKey,
+)
 from sqlalchemy.orm import relationship
-from core.database import Base
 from passlib.context import CryptContext
-from datetime import datetime
+from core.database import Base
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

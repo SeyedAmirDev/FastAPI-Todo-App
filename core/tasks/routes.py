@@ -1,26 +1,33 @@
 from fastapi import APIRouter, Path, Depends, HTTPException, status, Query
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 
 from core.database import get_db
-
 from users.models import UserModel
 from auth.jwt_auth import get_authenticated_user
-
-from .schemas import *
-from .models import *
+from tasks.schemas import (
+    TaskResponseSchema,
+    TaskCreateSchema,
+    TaskUpdateSchema,
+)
+from tasks.models import TaskModel
 
 router = APIRouter(tags=["Tasks"])
 
 
 @router.get("/tasks/", response_model=List[TaskResponseSchema])
 async def retrieve_task_list(
-        completed: bool = Query(None, description="filter tasks based on being completed or not"),
-        limit: int = Query(10, gt=0, le=50, description="limiting the number of items to retrieve"),
-        offset: int = Query(0, ge=0, description="used for paginating based on passed items"),
-        db: Session = Depends(get_db),
-        user: UserModel = Depends(get_authenticated_user),
+    completed: bool = Query(
+        None, description="filter tasks based on being completed or not"
+    ),
+    limit: int = Query(
+        10, gt=0, le=50, description="limiting the number of items to retrieve"
+    ),
+    offset: int = Query(
+        0, ge=0, description="used for paginating based on passed items"
+    ),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_authenticated_user),
 ):
 
     query = db.query(TaskModel).filter_by(user_id=user.id)
@@ -32,9 +39,9 @@ async def retrieve_task_list(
 
 @router.post("/tasks/", response_model=TaskResponseSchema)
 async def create_task(
-        request: TaskCreateSchema,
-        db: Session = Depends(get_db),
-        user: UserModel = Depends(get_authenticated_user),
+    request: TaskCreateSchema,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_authenticated_user),
 ):
 
     task = TaskModel(
@@ -52,28 +59,41 @@ async def create_task(
 
 @router.get("/tasks/{task_id}", response_model=TaskResponseSchema)
 async def retrieve_task_detail(
-        task_id: int = Path(..., gt=0),
-        db: Session = Depends(get_db),
-        user: UserModel = Depends(get_authenticated_user),
+    task_id: int = Path(..., gt=0),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_authenticated_user),
 ):
 
-    task = db.query(TaskModel).filter_by(id=task_id, user_id=user.id).one_or_none()
+    task = (
+        db.query(TaskModel)
+        .filter_by(id=task_id, user_id=user.id)
+        .one_or_none()
+    )
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found."
+        )
 
     return task
 
 
 @router.put("/tasks/{task_id}", response_model=TaskResponseSchema)
 async def update_task(
-        request: TaskUpdateSchema, task_id: int = Path(..., gt=0),
-        db: Session = Depends(get_db),
-        user: UserModel = Depends(get_authenticated_user),
+    request: TaskUpdateSchema,
+    task_id: int = Path(..., gt=0),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_authenticated_user),
 ):
 
-    task = db.query(TaskModel).filter_by(id=task_id, user_id=user.id).one_or_none()
+    task = (
+        db.query(TaskModel)
+        .filter_by(id=task_id, user_id=user.id)
+        .one_or_none()
+    )
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found."
+        )
 
     for key, value in request.model_dump().items():
         setattr(task, key, value)
@@ -86,14 +106,20 @@ async def update_task(
 
 @router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
-        task_id: int = Path(..., gt=0),
-        db: Session = Depends(get_db),
-        user: UserModel = Depends(get_authenticated_user),
+    task_id: int = Path(..., gt=0),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_authenticated_user),
 ):
 
-    task = db.query(TaskModel).filter_by(id=task_id, user_id=user.id).one_or_none()
+    task = (
+        db.query(TaskModel)
+        .filter_by(id=task_id, user_id=user.id)
+        .one_or_none()
+    )
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found."
+        )
 
     db.delete(task)
     db.commit()
